@@ -265,7 +265,7 @@ impl JsonSchema for Name {
             string: Some(Box::new(schemars::schema::StringValidation {
                 max_length: Some(63),
                 min_length: None,
-                pattern: Some("[a-z](|[a-zA-Z0-9-]*[a-zA-Z0-9])".to_string()),
+                pattern: Some("^[a-z](|[a-zA-Z0-9-]*[a-zA-Z0-9])$".to_string()),
             })),
             array: None,
             object: None,
@@ -370,7 +370,7 @@ impl JsonSchema for RoleName {
             string: Some(Box::new(schemars::schema::StringValidation {
                 max_length: Some(63),
                 min_length: None,
-                pattern: Some("[a-z-]+\\.[a-z-]+".to_string()),
+                pattern: Some("^[a-z-]+\\.[a-z-]+$".to_string()),
             })),
             array: None,
             object: None,
@@ -1081,11 +1081,11 @@ impl JsonSchema for Ipv4Net {
                     pattern: Some(
                         concat!(
                             // 10.x.x.x/8
-                            r#"^(10\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9]\.){2}(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])/(1[0-9]|2[0-8]|[8-9]))$"#,
+                            r#"^((10\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9]\.){2}(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])/(1[0-9]|2[0-8]|[8-9]))"#,
                             // 172.16.x.x/12
-                            r#"^(172\.16\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])/(1[2-9]|2[0-8]))$"#,
+                            r#"|(172\.16\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])/(1[2-9]|2[0-8]))"#,
                             // 192.168.x.x/16
-                            r#"^(192\.168\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])/(1[6-9]|2[0-8]))$"#,
+                            r#"|(192\.168\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])\.(25[0-5]|[1-2][0-4][0-9]|[1-9][0-9]|[0-9])/(1[6-9]|2[0-8])))$"#,
                         ).to_string(),
                     ),
                 })),
@@ -1803,7 +1803,7 @@ impl JsonSchema for L4PortRange {
                 max_length: Some(11),  // 5 digits for each port and the dash
                 min_length: Some(1),
                 pattern: Some(
-                    r#"^[0-9]{1,5}(-[0-9]{1,5})?$"#.to_string(),
+                    r#"^([0-9]{1,5})(-[0-9]{1,5})?$"#.to_string(),
                 ),
             })),
             ..Default::default()
