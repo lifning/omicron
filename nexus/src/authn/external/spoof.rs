@@ -88,16 +88,17 @@ where
         _log: &slog::Logger,
         request: &http::Request<hyper::Body>,
     ) -> SchemeResult {
-        let headers = request.headers();
-        authn_spoof(headers.typed_get().as_ref())
+        authn_spoof(request.headers())
     }
 }
 
-fn authn_spoof(raw_value: Option<&Authorization<Bearer>>) -> SchemeResult {
-    let token = match raw_value {
+fn authn_spoof(headers: &http::HeaderMap) -> SchemeResult {
+    let header = match headers.typed_get::<Authorization<Bearer>>() {
         None => return SchemeResult::NotRequested,
-        Some(bearer) => bearer.token(),
+        Some(header) => header,
     };
+
+    let token = header.token();
 
     if !token.starts_with(SPOOF_PREFIX) {
         // This is some other kind of bearer token.  Maybe another scheme knows
@@ -129,6 +130,12 @@ fn authn_spoof(raw_value: Option<&Authorization<Bearer>>) -> SchemeResult {
 /// accepted using this scheme
 pub fn make_header_value(id: Uuid) -> Authorization<Bearer> {
     make_header_value_str(&id.to_string()).unwrap()
+}
+
+pub fn make_header_map(id: Uuid) -> http::HeaderMap {
+    let mut headers = http::HeaderMap::new();
+    headers.typed_insert(make_header_value(id));
+    headers
 }
 
 /// Returns a value of the `Authorization` header with `str` in the place where
@@ -165,14 +172,12 @@ mod test {
     use super::super::super::Reason;
     use super::super::SchemeResult;
     use super::authn_spoof;
+    use super::make_header_map;
     use super::make_header_value;
     use super::make_header_value_raw;
-    use super::make_header_value_str;
     use crate::authn;
     use authn::Actor;
-    use headers::authorization::Bearer;
     use headers::authorization::Credentials;
-    use headers::Authorization;
     use headers::HeaderMapExt;
     use uuid::Uuid;
 
@@ -225,10 +230,10 @@ mod test {
     fn test_spoof_header_valid() {
         let test_uuid_str = "37b56e4f-8c60-453b-a37e-99be6efe8a89";
         let test_uuid = test_uuid_str.parse::<Uuid>().unwrap();
-        let test_header = make_header_value(test_uuid);
+        let test_headers = make_header_map(test_uuid);
 
         // Success case: the client provided a valid uuid in the header.
-        let success_case = authn_spoof(Some(&test_header));
+        let success_case = authn_spoof(&test_headers);
         assert!(matches!(
             success_case,
             SchemeResult::Authenticated(
@@ -240,22 +245,25 @@ mod test {
     #[test]
     fn test_spoof_header_missing() {
         // The client provided no credentials.
-        assert!(matches!(authn_spoof(None), SchemeResult::NotRequested));
+        let headers = http::HeaderMap::new();
+        assert!(matches!(authn_spoof(&headers), SchemeResult::NotRequested));
     }
 
     #[test]
     fn test_spoof_reserved_values() {
         let bad_actor = super::SPOOF_RESERVED_BAD_ACTOR;
-        let header = super::SPOOF_HEADER_BAD_ACTOR.clone();
+        let mut headers = http::HeaderMap::new();
+        headers.typed_insert(super::SPOOF_HEADER_BAD_ACTOR.clone());
         assert!(matches!(
-            authn_spoof(Some(&header)),
+            authn_spoof(&headers),
             SchemeResult::Failed(Reason::UnknownActor{ actor })
                 if actor == bad_actor
         ));
 
-        let header = super::SPOOF_HEADER_BAD_CREDS.clone();
+        let mut headers = http::HeaderMap::new();
+        headers.typed_insert(super::SPOOF_HEADER_BAD_CREDS.clone());
         assert!(matches!(
-            authn_spoof(Some(&header)),
+            authn_spoof(&headers),
             SchemeResult::Failed(Reason::BadCredentials{
                 actor,
                 source
@@ -274,19 +282,14 @@ mod test {
             "",                                    // empty value
         ];
 
-        for input in &bad_inputs {
-            let test_header = make_header_value_str(input).unwrap();
-            let result = authn_spoof(Some(&test_header));
-            if let SchemeResult::Failed(error) = result {
-                assert!(error.to_string().starts_with(
-                    "bad authentication credentials: parsing header value"
-                ));
-            } else {
-                panic!(
-                    "unexpected result from bad input {:?}: {:?}",
-                    input, result
-                );
-            }
+        for &input in &bad_inputs {
+            let mut test_headers = http::HeaderMap::new();
+            let test_value =
+                http::header::HeaderValue::from_bytes(input.as_bytes())
+                    .unwrap();
+            test_headers.insert(http::header::AUTHORIZATION, test_value);
+            let result = authn_spoof(&test_headers);
+            assert!(matches!(result, SchemeResult::NotRequested));
         }
 
         // This case is not UTF-8.  It's a valid HTTP header.  The
@@ -304,11 +307,6 @@ mod test {
         let test_header = make_header_value_raw(b"foo\x80ar").unwrap();
         let mut map = http::HeaderMap::new();
         map.insert(&http::header::AUTHORIZATION, test_header);
-        let typed_header = map.typed_get::<Authorization<Bearer>>();
-        assert!(typed_header.is_none());
-        assert!(matches!(
-            authn_spoof(typed_header.as_ref()),
-            SchemeResult::NotRequested
-        ));
+        assert!(matches!(authn_spoof(&map), SchemeResult::NotRequested));
     }
 }
