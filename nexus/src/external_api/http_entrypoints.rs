@@ -20,7 +20,7 @@ use crate::db;
 use crate::db::model::Name;
 use crate::external_api::shared;
 use crate::ServerContext;
-use dropshot::endpoint;
+use dropshot::{channel, endpoint, WebsocketConnection, WebsocketChannelResult};
 use dropshot::ApiDescription;
 use dropshot::EmptyScanParams;
 use dropshot::HttpError;
@@ -141,6 +141,7 @@ pub fn external_api() -> NexusApiDescription {
         api.register(instance_start)?;
         api.register(instance_stop)?;
         api.register(instance_serial_console)?;
+        api.register(instance_serial_console_2)?;
 
         // Project-scoped images API
         api.register(image_list)?;
@@ -2107,6 +2108,21 @@ async fn instance_serial_console(
         Ok(HttpResponseOk(data))
     };
     apictx.external_latencies.instrument_dropshot_handler(&rqctx, handler).await
+}
+
+/// Fetch an instance's serial console
+#[channel {
+    protocol = WEBSOCKETS,
+    path = "/organizations/{organization_name}/projects/{project_name}/instances/{instance_name}/serial-console-2",
+    tags = ["instances"],
+}]
+async fn instance_serial_console_2(
+    rqctx: Arc<RequestContext<Arc<ServerContext>>>,
+    sock: WebsocketConnection,
+    path_params: Path<InstancePathParam>,
+) -> WebsocketChannelResult {
+
+    Ok(())
 }
 
 /// List an instance's disks
