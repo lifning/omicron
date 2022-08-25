@@ -22,7 +22,7 @@ use uuid::Uuid;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-use propolis_client::api::VolumeConstructionRequest;
+use crucible_client_types::VolumeConstructionRequest;
 
 use super::collection::SimCollection;
 use super::config::Config;
@@ -214,7 +214,10 @@ impl SledAgent {
             let target = DiskStateRequested::Attached(instance_id);
 
             let id = match disk.volume_construction_request {
-                VolumeConstructionRequest::Volume { id, .. } => id,
+                VolumeConstructionRequest::Volume {
+                    id,
+                    ..
+                } => id,
                 _ => panic!("Unexpected construction type"),
             };
             self.disks.sim_ensure(&id, initial_state, target).await?;

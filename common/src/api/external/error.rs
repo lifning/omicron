@@ -348,12 +348,6 @@ impl<T: ClientError> From<progenitor::progenitor_client::Error<T>> for Error {
                 Error::internal_error(&format!("CommunicationError: {}", ee))
             }
 
-            // This error indicates a problem opening a connection to the
-            // remote service, in the case of a channel.
-            progenitor::progenitor_client::Error::IoError(ee) => {
-                Error::internal_error(&format!("IoError: {}", ee))
-            }
-
             // This error represents an expected error from the remote service.
             progenitor::progenitor_client::Error::ErrorResponse(rv) => {
                 let message = rv.message();

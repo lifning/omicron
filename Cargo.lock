@@ -3993,13 +3993,17 @@ name = "progenitor-client"
 version = "0.1.2-dev"
 source = "git+https://github.com/oxidecomputer/progenitor#8ff1bb5024d39366e662cedc72e2d4425c6cfde6"
 dependencies = [
+ "base64",
  "bytes",
  "futures-core",
+ "http",
  "percent-encoding",
+ "rand 0.8.5",
  "reqwest",
  "serde",
  "serde_json",
  "serde_urlencoded",
+ "tokio",
 ]
 
 [[package]]
@@ -4045,6 +4049,7 @@ version = "0.1.0"
 source = "git+https://github.com/oxidecomputer/propolis?rev=c0776be03bf0928651996eb00ad6f3665e99ebe7#c0776be03bf0928651996eb00ad6f3665e99ebe7"
 dependencies = [
  "crucible-client-types",
+ "progenitor",
  "propolis_types",
  "reqwest",
  "ring",
