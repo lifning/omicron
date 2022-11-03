@@ -232,6 +232,7 @@ pub struct OpContext {
     kind: OpKind,
 }
 
+#[derive(PartialEq)]
 enum OpKind {
     /// Handling an external API request
     ExternalApiRequest,
