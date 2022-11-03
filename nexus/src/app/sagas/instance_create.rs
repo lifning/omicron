@@ -764,11 +764,17 @@ pub(super) async fn allocate_sled_ipv6(
 ) -> Result<Ipv6Addr, ActionError> {
     let osagactx = sagactx.user_data();
     let sled_uuid = sagactx.lookup::<Uuid>(sled_id_name)?;
-    osagactx
-        .datastore()
-        .next_ipv6_address(opctx, sled_uuid)
-        .await
-        .map_err(ActionError::action_failed)
+    // are we possibly going to try to contact a mock propolis-server in an integ test?
+    // (i.e. sled-agent-sim isn't actually making propolis zones with these IPs)
+    if opctx.is_test() {
+        Ok(Ipv6Addr::LOCALHOST)
+    } else {
+        osagactx
+            .datastore()
+            .next_ipv6_address(opctx, sled_uuid)
+            .await
+            .map_err(ActionError::action_failed)
+    }
 }
 
 // Allocate an IP address on the destination sled for the Propolis server

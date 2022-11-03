@@ -231,6 +231,7 @@ pub struct OpContext {
     kind: OpKind,
 }
 
+#[derive(PartialEq)]
 enum OpKind {
     /// Handling an external API request
     ExternalApiRequest,
@@ -465,6 +466,10 @@ impl OpContext {
             "result" => ?result,
         );
         result
+    }
+
+    pub fn is_test(&self) -> bool {
+        self.kind == OpKind::Test
     }
 }
 

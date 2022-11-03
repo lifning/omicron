@@ -3129,7 +3129,7 @@ async fn instance_serial_console_v1(
     apictx.external_latencies.instrument_dropshot_handler(&rqctx, handler).await
 }
 
-/// Fetch an instance's serial console
+/// Fetch an instance's serial console history
 /// Use `GET /v1/instances/{instance}/serial-console` instead
 #[endpoint {
     method = GET,
@@ -3175,7 +3175,7 @@ async fn instance_serial_console_stream_v1(
     rqctx: Arc<RequestContext<Arc<ServerContext>>>,
     conn: WebsocketConnection,
     path_params: Path<params::InstancePath>,
-    query_params: Query<params::OptionalProjectSelector>,
+    query_params: Query<params::InstanceSerialConsole>,
 ) -> WebsocketChannelResult {
     let apictx = rqctx.context();
     let nexus = &apictx.nexus;
@@ -3187,7 +3187,10 @@ async fn instance_serial_console_stream_v1(
         instance: path.instance,
     };
     let instance_lookup = nexus.instance_lookup(&opctx, &instance_selector)?;
-    nexus.instance_serial_console_stream(conn, &instance_lookup).await?;
+    let params = query.console_params;
+    nexus
+        .instance_serial_console_stream(conn, &instance_lookup, &params)
+        .await?;
     Ok(())
 }
 
@@ -3203,6 +3206,7 @@ async fn instance_serial_console_stream(
     rqctx: Arc<RequestContext<Arc<ServerContext>>>,
     conn: WebsocketConnection,
     path_params: Path<InstancePathParam>,
+    query_params: Query<params::InstanceSerialConsoleRequest>,
 ) -> WebsocketChannelResult {
     let apictx = rqctx.context();
     let nexus = &apictx.nexus;
@@ -3214,7 +3218,10 @@ async fn instance_serial_console_stream(
         path.instance_name.into(),
     );
     let instance_lookup = nexus.instance_lookup(&opctx, &instance_selector)?;
-    nexus.instance_serial_console_stream(conn, &instance_lookup).await?;
+    let params = &query_params.into_inner();
+    nexus
+        .instance_serial_console_stream(conn, &instance_lookup, params)
+        .await?;
     Ok(())
 }
 

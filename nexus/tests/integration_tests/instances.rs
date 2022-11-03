@@ -2767,6 +2767,7 @@ async fn test_instance_serial(cptestctx: &ControlPlaneTestContext) {
             > instance.runtime.time_run_state_updated
     );
 
+    // Query serial output history endpoint
     let serial_data: params::InstanceSerialConsoleData =
         NexusRequest::object_get(client, &instance_serial_url)
             .authn_as(AuthnMode::PrivilegedUser)

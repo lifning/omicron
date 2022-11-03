@@ -17,8 +17,7 @@ use crate::instance_manager::InstanceManager;
 use crate::nexus::{LazyNexusClient, NexusRequestQueue};
 use crate::params::{
     DatasetKind, DiskStateRequested, InstanceHardware, InstanceMigrateParams,
-    InstanceRuntimeStateRequested, InstanceSerialConsoleData,
-    ServiceEnsureBody, VpcFirewallRule, Zpool,
+    InstanceRuntimeStateRequested, ServiceEnsureBody, VpcFirewallRule, Zpool,
 };
 use crate::services::{self, ServiceManager};
 use crate::storage_manager::StorageManager;
@@ -48,7 +47,6 @@ use crate::illumos::{dladm::Dladm, zfs::Zfs, zone::Zones};
 use crate::illumos::{
     dladm::MockDladm as Dladm, zfs::MockZfs as Zfs, zone::MockZones as Zones,
 };
-use crate::serial::ByteOffset;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -588,23 +586,6 @@ impl SledAgent {
         let nexus_client = self.inner.lazy_nexus_client.get().await?;
         crate::updates::download_artifact(artifact, &nexus_client).await?;
         Ok(())
-    }
-
-    pub async fn instance_serial_console_data(
-        &self,
-        instance_id: Uuid,
-        byte_offset: ByteOffset,
-        max_bytes: Option<usize>,
-    ) -> Result<InstanceSerialConsoleData, Error> {
-        self.inner
-            .instances
-            .instance_serial_console_buffer_data(
-                instance_id,
-                byte_offset,
-                max_bytes,
-            )
-            .await
-            .map_err(Error::from)
     }
 
     /// Issue a snapshot request for a Crucible disk attached to an instance

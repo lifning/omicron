@@ -30,7 +30,6 @@ mod nexus;
 mod opte;
 pub mod params;
 pub mod rack_setup;
-mod serial;
 pub mod server;
 mod services;
 mod sled_agent;
