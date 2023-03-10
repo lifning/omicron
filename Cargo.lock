@@ -378,7 +378,14 @@ dependencies = [
 [[package]]
 name = "bhyve_api"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
+dependencies = [
+ "bhyve_api_sys",
+ "libc",
+]
+
+[[package]]
+name = "bhyve_api_sys"
+version = "0.0.0"
 dependencies = [
  "libc",
  "num_enum",
@@ -933,6 +940,12 @@ checksum = "0d4198f73e42b4936b35b5bb248d81d2b595ecb170da0bac7655c54eedfa8da8"
 dependencies = [
  "os_str_bytes",
 ]
+
+[[package]]
+name = "cobs"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "67ba02a97a2bd10f4b59b25c7973101c79642302776489e030cd13cdab09ed15"
 
 [[package]]
 name = "codespan-reporting"
@@ -1690,7 +1703,6 @@ checksum = "7e1a8646b2c125eeb9a84ef0faa6d2d102ea0d5da60b824ade2743263117b848"
 [[package]]
 name = "dladm"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
 dependencies = [
  "libc",
  "num_enum",
@@ -1785,6 +1797,12 @@ name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1435fa1053d8b2fbbe9be7e97eca7f33d37b28409959813daefc1446a14247f1"
+
+[[package]]
+name = "downcast-rs"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ea835d29036a4087793836fa931b08837ad5e957da9e23886b29586fb9b6650"
 
 [[package]]
 name = "dropshot"
@@ -4333,7 +4351,7 @@ dependencies = [
  "illumos-sys-hdrs",
  "kstat-macro",
  "opte-api",
- "postcard",
+ "postcard 0.7.3",
  "serde",
  "smoltcp",
  "version_check",
@@ -4347,7 +4365,7 @@ source = "git+https://github.com/oxidecomputer/opte?rev=41ba1d3fa476284c9cbc5d7e
 dependencies = [
  "cfg-if 0.1.10",
  "illumos-sys-hdrs",
- "postcard",
+ "postcard 0.7.3",
  "serde",
  "smoltcp",
 ]
@@ -4361,7 +4379,7 @@ dependencies = [
  "libnet",
  "opte",
  "oxide-vpc",
- "postcard",
+ "postcard 0.7.3",
  "serde",
  "thiserror",
 ]
@@ -4988,6 +5006,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "postcard"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfa512cd0d087cc9f99ad30a1bf64795b67871edbead083ffc3a4dfafa59aa00"
+dependencies = [
+ "cobs",
+ "serde",
+]
+
+[[package]]
 name = "postcard-cobs"
 version = "0.1.5-pre"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5212,7 +5240,6 @@ checksum = "8bccbff07d5ed689c4087d20d7307a52ab6141edeedf487c3876a55b86cf63df"
 [[package]]
 name = "propolis"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
 dependencies = [
  "anyhow",
  "bhyve_api",
@@ -5220,6 +5247,7 @@ dependencies = [
  "bitstruct",
  "byteorder",
  "dladm",
+ "downcast-rs",
  "erased-serde",
  "futures",
  "lazy_static",
@@ -5243,7 +5271,6 @@ dependencies = [
 [[package]]
 name = "propolis-client"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
 dependencies = [
  "base64 0.21.0",
  "crucible-client-types 0.1.0 (git+https://github.com/oxidecomputer/crucible?rev=894d44988c56713105bbbd07900d628781ab4dda)",
@@ -5264,7 +5291,6 @@ dependencies = [
 [[package]]
 name = "propolis-server"
 version = "0.1.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5276,6 +5302,7 @@ dependencies = [
  "chrono",
  "clap 3.2.23",
  "const_format",
+ "downcast-rs",
  "dropshot",
  "erased-serde",
  "futures",
@@ -5284,6 +5311,7 @@ dependencies = [
  "omicron-common 0.1.0 (git+https://github.com/oxidecomputer/omicron?branch=main)",
  "oximeter 0.1.0 (git+https://github.com/oxidecomputer/omicron?branch=main)",
  "oximeter-producer 0.1.0 (git+https://github.com/oxidecomputer/omicron?branch=main)",
+ "postcard 1.0.4",
  "propolis",
  "propolis-client",
  "propolis-server-config",
@@ -5307,7 +5335,6 @@ dependencies = [
 [[package]]
 name = "propolis-server-config"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
 dependencies = [
  "serde",
  "serde_derive",
@@ -5318,7 +5345,6 @@ dependencies = [
 [[package]]
 name = "propolis_types"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
 dependencies = [
  "schemars",
  "serde",
@@ -7950,7 +7976,17 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 [[package]]
 name = "viona_api"
 version = "0.0.0"
-source = "git+https://github.com/oxidecomputer/propolis?rev=40e8d8e280c312e44047ff9d6b3b261e4537977a#40e8d8e280c312e44047ff9d6b3b261e4537977a"
+dependencies = [
+ "libc",
+ "viona_api_sys",
+]
+
+[[package]]
+name = "viona_api_sys"
+version = "0.0.0"
+dependencies = [
+ "libc",
+]
 
 [[package]]
 name = "void"

@@ -945,7 +945,7 @@ impl super::Nexus {
 
     async fn proxy_instance_serial_ws(
         client_upgraded: impl AsyncRead + AsyncWrite + Unpin,
-        propolis_upgraded: impl AsyncRead + AsyncWrite + Unpin,
+        propolis_upgraded: reqwest::Upgraded, //impl AsyncRead + AsyncWrite + Unpin,
     ) -> Result<(), tokio_tungstenite::tungstenite::Error> {
         let (mut propolis_sink, mut propolis_stream) =
             WebSocketStream::from_raw_socket(
@@ -1039,7 +1039,28 @@ impl super::Nexus {
                             nexus_sink.send(WebSocketMessage::Close(details)).await?;
                             break;
                         }
-                        Some(Ok(WebSocketMessage::Text(_text))) => {
+                        Some(Ok(WebSocketMessage::Text(json))) => {
+                            match serde_json::from_str(&json)
+                                .map_err(|e| tokio_tungstenite::tungstenite::Error::Utf8)? {
+                                propolis_client::handmade::api::InstanceSerialConsoleControlMessage::Migrating {
+                                    destination, from_start,
+                                } => {
+                                    let pc = propolis_client::Client::new(&format!("http://{}", destination));
+                                    let upgraded = pc.instance_serial()
+                                        .from_start(from_start)
+                                        .send()
+                                        .await
+                                        .map_err(|e| tokio_tungstenite::tungstenite::Error::ConnectionClosed)?;
+                                    (propolis_sink, propolis_stream) =
+                                        WebSocketStream::from_raw_socket(
+                                            upgraded.into_inner(),
+                                            WebSocketRole::Client,
+                                            None,
+                                        )
+                                        .await
+                                        .split();
+                                }
+                            }
                             // TODO: deserialize a json payload, specifying:
                             //  - event: "migration"
                             //  - address: the address of the new propolis-server
