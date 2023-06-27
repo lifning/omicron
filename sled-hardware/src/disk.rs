@@ -236,14 +236,17 @@ pub const DEBUG_DATASET_QUOTA: usize = 100 * (1 << 30);
 
 // U.2 datasets live under the encrypted dataset and inherit encryption
 pub const ZONE_DATASET: &'static str = "crypt/zone";
+pub const DUMP_DATASET: &'static str = "crypt/debug";
 
 // This is the root dataset for all U.2 drives. Encryption is inherited.
 pub const CRYPT_DATASET: &'static str = "crypt";
 
-const U2_EXPECTED_DATASET_COUNT: usize = 1;
+const U2_EXPECTED_DATASET_COUNT: usize = 2;
 static U2_EXPECTED_DATASETS: [QuotaLimitedDataset; U2_EXPECTED_DATASET_COUNT] = [
     // Stores filesystems for zones
     QuotaLimitedDataset::no_quota(ZONE_DATASET),
+    // For storing full kernel RAM dumps
+    QuotaLimitedDataset::no_quota(DUMP_DATASET),
 ];
 
 const M2_EXPECTED_DATASET_COUNT: usize = 5;
@@ -537,6 +540,17 @@ impl Disk {
         self.paths.partition_device_path(
             &self.partitions,
             Partition::BootImage,
+            raw,
+        )
+    }
+
+    pub fn dump_device_devfs_path(
+        &self,
+        raw: bool,
+    ) -> Result<Utf8PathBuf, DiskError> {
+        self.paths.partition_device_path(
+            &self.partitions,
+            Partition::DumpDevice,
             raw,
         )
     }

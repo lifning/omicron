@@ -161,6 +161,7 @@ mod test {
     use illumos_utils::zpool::MockZpool;
     use omicron_test_utils::dev::test_setup_log;
     use std::path::Path;
+    use libefi_illumos::GptEntryType;
 
     struct FakePartition {
         index: usize,
@@ -169,6 +170,26 @@ mod test {
     impl gpt::LibEfiPartition for FakePartition {
         fn index(&self) -> usize {
             self.index
+        }
+
+        fn start(&self) -> u64 {
+            0
+        }
+
+        fn size(&self) -> u64 {
+            9001
+        }
+
+        fn partition_type_guid(&self) -> GptEntryType {
+            GptEntryType::Other(Default::default())
+        }
+
+        fn tag(&self) -> u16 {
+            0
+        }
+
+        fn flag(&self) -> u16 {
+            0
         }
     }
 
@@ -180,6 +201,10 @@ mod test {
         }
         fn partitions(&self) -> Vec<Self::Partition<'_>> {
             vec![]
+        }
+
+        fn block_size(&self) -> u32 {
+            0
         }
     }
 
@@ -272,6 +297,9 @@ mod test {
             }
             r
         }
+        fn block_size(&self) -> u32 {
+            0
+        }
     }
 
     #[test]
@@ -314,6 +342,9 @@ mod test {
             }
             r
         }
+        fn block_size(&self) -> u32 {
+            0
+        }
     }
 
     #[test]
@@ -351,6 +382,9 @@ mod test {
         }
         fn partitions(&self) -> Vec<Self::Partition<'_>> {
             vec![]
+        }
+        fn block_size(&self) -> u32 {
+            0
         }
     }
 

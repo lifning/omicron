@@ -6,7 +6,7 @@
 //!
 //! Enables either real or faked GPT access.
 
-use libefi_illumos::Error;
+use libefi_illumos::{Error, GptEntryType};
 use std::path::Path;
 
 /// Trait to sub-in for access to the libefi_illumos::Gpt.
@@ -21,6 +21,7 @@ pub(crate) trait LibEfiGpt {
     where
         Self: Sized;
     fn partitions(&self) -> Vec<Self::Partition<'_>>;
+    fn block_size(&self) -> u32;
 }
 
 impl LibEfiGpt for libefi_illumos::Gpt {
@@ -32,6 +33,10 @@ impl LibEfiGpt for libefi_illumos::Gpt {
     fn partitions(&self) -> Vec<Self::Partition<'_>> {
         self.partitions().collect()
     }
+
+    fn block_size(&self) -> u32 {
+        self.block_size()
+    }
 }
 
 /// Trait to sub-in for access to the libefi_illumos::Partition.
@@ -40,10 +45,35 @@ impl LibEfiGpt for libefi_illumos::Gpt {
 /// by libefi_illumos::Partition for testing.
 pub(crate) trait LibEfiPartition {
     fn index(&self) -> usize;
+    fn start(&self) -> u64;
+    fn size(&self) -> u64;
+    fn partition_type_guid(&self) -> libefi_illumos::GptEntryType;
+    fn tag(&self) -> u16;
+    fn flag(&self) -> u16;
 }
 
 impl LibEfiPartition for libefi_illumos::Partition<'_> {
     fn index(&self) -> usize {
         self.index()
+    }
+
+    fn start(&self) -> u64 {
+        self.start()
+    }
+
+    fn size(&self) -> u64 {
+        self.size()
+    }
+
+    fn partition_type_guid(&self) -> GptEntryType {
+        self.partition_type_guid()
+    }
+
+    fn tag(&self) -> u16 {
+        self.tag()
+    }
+
+    fn flag(&self) -> u16 {
+        self.flag()
     }
 }

@@ -22,12 +22,12 @@ use omicron_common::backoff;
 use omicron_common::disk::DiskIdentity;
 use sled_hardware::{Disk, DiskVariant, UnparsedDisk};
 use slog::Logger;
-use std::collections::hash_map;
+use std::collections::{BTreeMap, hash_map};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::sync::{mpsc, oneshot, Mutex};
+use tokio::sync::{mpsc, oneshot, Mutex, MutexGuard};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
@@ -35,6 +35,7 @@ use uuid::Uuid;
 use illumos_utils::{zfs::MockZfs as Zfs, zpool::MockZpool as Zpool};
 #[cfg(not(test))]
 use illumos_utils::{zfs::Zfs, zpool::Zpool};
+use illumos_utils::dumpadm::{DumpAdmError, DumpHdrError};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
@@ -125,6 +126,12 @@ pub enum Error {
 
     #[error("Underlay not yet initialized")]
     UnderlayNotInitialized,
+
+    #[error("Encountered errors configuring dump device: {0:?}")]
+    DumpAdmSetup(BTreeMap<Utf8PathBuf, DumpAdmError>),
+
+    #[error("Encountered error checking dump device flags: {0}")]
+    DumpHdr(#[from] DumpHdrError),
 }
 
 /// A ZFS storage pool.
@@ -588,7 +595,105 @@ impl StorageWorker {
         self.upsert_zpool(&resources, disk.identity(), disk.zpool_name())
             .await?;
 
+        Self::TODO_NAME_dumpsetup_stuff(disks).await?;
+
         Ok(())
+    }
+
+    async fn TODO_NAME_dumpsetup_stuff(disks: &mut MutexGuard<'_, HashMap<DiskIdentity, DiskWrapper>>) -> Result<(), Error> {
+        let mut dump_slices = Vec::new();
+        let mut u2_pools = Vec::new();
+        for (_id, disk_wrapper) in disks.iter() {
+            match disk_wrapper {
+                DiskWrapper::Real { disk, .. } => {
+                    match disk.variant() {
+                        DiskVariant::M2 => {
+                            dump_slices.push(disk.dump_device_devfs_path(false))
+                        }
+                        DiskVariant::U2 => {
+                            u2_pools.push(disk.zpool_name());
+                        }
+                    }
+                }
+                DiskWrapper::Synthetic { .. } => {}
+            }
+        }
+/*
+        let dump_index = M2_EXPECTED_PARTITIONS
+            .iter()
+            .position(|x| *x == Partition::DumpDevice)
+            .unwrap();
+        let zpool_index = M2_EXPECTED_PARTITIONS
+            .iter()
+            .position(|x| *x == Partition::ZfsPool)
+            .unwrap();
+
+        let partitions = gpt.partitions();
+        if partitions.len() != M2_EXPECTED_PARTITIONS.len() {
+            todo!()
+        }
+        let dump_partition = &partitions[dump_index];
+        let zpool_partition = &partitions[zpool_index];
+
+        if gpt.block_size() != 4096 {
+            todo!()
+        }
+
+        if dump_partition.tag() != 4
+            || dump_partition.flag() != 0
+            || dump_partition.start() != 4194310
+            || dump_partition.size() != 268435456
+        {
+            todo!()
+        }
+
+        if zpool_partition.tag() != 4
+            || zpool_partition.flag() != 0
+            || zpool_partition.start() != 272629766
+            || zpool_partition.size() != 196211787
+        {
+            todo!()
+        }
+*/
+        let mut errors = BTreeMap::new();
+        for dump_slice in dump_slices {
+            if let Ok(dump_slice) = dump_slice {
+                // NOTE: because of the need to have dumpadm change the global
+                // state of which slice the system is using for dumps in order
+                // for savecore to behave the way we want (i.e. clear the flag
+                // after succeeding), we could hypothetically miss a dump if
+                // the kernel crashes again while savecore is still running.
+                if u2_pools.is_empty() {
+                    // Don't risk overwriting an existing dump if there's
+                    // already one there until we can attempt to savecore(8)
+                    // it away and clear the flag to make room.
+                    if !illumos_utils::dumpadm::dump_flag_is_valid(&dump_slice).await? {
+                        // Have dumpadm write the config for crash dumps to be
+                        // on this slice, at least, until a U.2 comes along.
+                        if let Err(e) = illumos_utils::dumpadm::dumpadm(&dump_slice, None) {
+                            errors.insert(dump_slice.to_owned(), e);
+                        }
+                    }
+                } else {
+                    for pool in &u2_pools {
+                        let mountpoint = pool.dataset_mountpoint(sled_hardware::disk::DEBUG_DATASET);
+                        // Have dumpadm write the config for crash dumps to be
+                        // on this slice and .
+                        if let Err(e) = illumos_utils::dumpadm::dumpadm(&dump_slice, Some(&mountpoint)) {
+                            errors.insert(dump_slice.to_owned(), e);
+                        } else {
+                            // We successfully compressed it onto a U.2's pool
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(Error::DumpAdmSetup(errors))
+        }
     }
 
     async fn delete_disk(
