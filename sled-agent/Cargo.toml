@@ -86,6 +86,7 @@ hyper.workspace = true
 omicron-test-utils.workspace = true
 openapi-lint.workspace = true
 openapiv3.workspace = true
+mockall.workspace = true
 pretty_assertions.workspace = true
 rcgen.workspace = true
 serial_test.workspace = true
