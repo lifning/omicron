@@ -400,9 +400,9 @@ mod swapctl {
         // name, including the null terminating character, so these buffers
         // have sufficient space for paths on the system.
         const MAXPATHLEN: usize = libc::PATH_MAX as usize;
-        let mut p1 = [0i8; MAXPATHLEN];
-        let mut p2 = [0i8; MAXPATHLEN];
-        let mut p3 = [0i8; MAXPATHLEN];
+        let mut p1 = [0i8 as libc::c_char; MAXPATHLEN];
+        let mut p2 = [0i8 as libc::c_char; MAXPATHLEN];
+        let mut p3 = [0i8 as libc::c_char; MAXPATHLEN];
         let entries: [swapent; N_SWAPENTS] = [
             swapent {
                 ste_path: &mut p1 as *mut libc::c_char,
