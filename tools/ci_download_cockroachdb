@@ -111,12 +111,24 @@ function configure_os
 			CIDL_ASSEMBLE="do_assemble_official"
 			;;
 		linux-gnu*)
-			CIDL_BUILD="linux-amd64"
 			CIDL_SUFFIX="tgz"
-			CIDL_MD5="$CIDL_MD5_LINUX"
-			CIDL_MD5FUNC="do_md5sum"
 			CIDL_URL_BASE="$CIDL_URL_COCKROACH"
 			CIDL_ASSEMBLE="do_assemble_official"
+			case "$(uname -m)" in
+				aarch64)
+					CIDL_BUILD="linux-arm64"
+					CIDL_MD5="" # FIXME
+					CIDL_MD5FUNC="true"
+					;;
+				x86_64)
+					CIDL_BUILD="linux-amd64"
+					CIDL_MD5="$CIDL_MD5_LINUX"
+					CIDL_MD5FUNC="do_md5sum"
+					;;
+				*)
+					fail "unsupported architecture: $(uname -m)"
+					;;
+			esac
 			;;
 		solaris*)
 			CIDL_BUILD="illumos"
