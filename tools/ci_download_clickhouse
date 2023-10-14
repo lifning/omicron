@@ -84,7 +84,9 @@ function main
 	do_untar "$TARBALL_FILE" "$DEST_DIR"
 
 	# Run the binary as a sanity-check.
-	"$DEST_DIR/clickhouse" server --version
+	if [ -z "$CLICKHOUSE_NO_VERIFY" ]; then
+		"$DEST_DIR/clickhouse" server --version
+	fi
 }
 
 function fail
