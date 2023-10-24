@@ -83,7 +83,7 @@ function main
 	# Unpack the tarball into a local directory
 	do_untar "$TARBALL_FILE" "$DEST_DIR"
 
-	# Run the binary as a sanity-check.
+	# Try --version to verify that the binary runs at all.
 	if [ -z "$CLICKHOUSE_NO_VERIFY" ]; then
 		"$DEST_DIR/clickhouse" server --version
 	fi
