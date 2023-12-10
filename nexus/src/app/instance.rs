@@ -955,6 +955,10 @@ impl super::Nexus {
                 //
                 // If the operation failed, kick the sled agent error back up to
                 // the caller to let it decide how to handle it.
+                //
+                // When creating the zone for the first time, we just get
+                // Ok(None) here, which is a no-op. We later asynchronously get
+                // a cpapi call invoking Self::write_returned_instance_state
                 match instance_put_result {
                     Ok(state) => self
                         .write_returned_instance_state(&instance_id, state)
@@ -965,6 +969,38 @@ impl super::Nexus {
                 }
             }
         }
+    }
+
+    /// TODO describe how this relates to [Self::instance_request_state] (above)
+    pub(crate) async fn instance_handle_creation_result(
+        &self,
+        opctx: &OpContext,
+        instance_id: &Uuid,
+        result: Result<
+            Option<nexus::SledInstanceState>,
+            sled_agent_client::types::Error,
+        >,
+    ) -> Result<(), Error> {
+        let (.., authz_instance, db_instance) =
+            LookupPath::new(&opctx, &self.db_datastore)
+                .instance_id(*instance_id)
+                .lookup_for(authz::Action::Modify)
+                .await?;
+
+        let state = self
+            .db_datastore
+            .instance_fetch_with_vmm(opctx, &authz_instance)
+            .await?;
+
+        // TODO: add param for sled-agent to show its 'previous' and compare with this
+        let prev_instance_runtime = &state.instance().runtime_state;
+
+        self.handle_instance_put_result(
+            instance_id,
+            prev_instance_runtime,
+            result.map_err(Into::into), // TODO: this isn't real
+        ).await?;
+        todo!()
     }
 
     /// Modifies the runtime state of the Instance as requested.  This generally

@@ -269,6 +269,34 @@ async fn cpapi_instances_put(
     apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
 }
 
+/// Asynchronously report the result of a potentially long-running
+/// instance_put call to sled-agent made during instance creation.
+#[endpoint {
+    method = PUT,
+    path = "/instances/{instance_id}/creation-result",
+}]
+async fn cpapi_handle_instance_put_result(
+    rqctx: RequestContext<Arc<ServerContext>>,
+    path_params: Path<InstancePathParam>,
+    result: TypedBody<Result<
+        Option<SledInstanceState>,
+        sled_agent_client::types::Error
+    >>,
+) -> Result<HttpResponseUpdatedNoContent, HttpError> {
+    let apictx = rqctx.context();
+    let nexus = &apictx.nexus;
+    let path = path_params.into_inner();
+    let result = result.into_inner();
+    let opctx = crate::context::op_context_for_internal_api(&rqctx).await;
+    let handler = async {
+        nexus
+            .instance_handle_creation_result(&opctx, &path.instance_id, result)
+            .await?;
+        Ok(HttpResponseUpdatedNoContent())
+    };
+    apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
+}
+
 /// Path parameters for Disk requests (internal API)
 #[derive(Deserialize, JsonSchema)]
 struct DiskPathParam {
