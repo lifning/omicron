@@ -58,6 +58,8 @@ pub(crate) fn internal_api() -> NexusApiDescription {
         api.register(physical_disk_delete)?;
         api.register(zpool_put)?;
         api.register(cpapi_instances_put)?;
+        api.register(cpapi_handle_instance_put_success)?;
+        api.register(cpapi_handle_instance_put_failure)?;
         api.register(cpapi_disks_put)?;
         api.register(cpapi_volume_remove_read_only_parent)?;
         api.register(cpapi_disk_remove_read_only_parent)?;
@@ -269,24 +271,48 @@ async fn cpapi_instances_put(
     apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
 }
 
-/// Asynchronously report the result of a potentially long-running
+/// Asynchronously report the successful result of a potentially long-running
 /// instance_put call to sled-agent made during instance creation.
 #[endpoint {
-    method = PUT,
-    path = "/instances/{instance_id}/creation-result",
+method = PUT,
+path = "/instances/{instance_id}/creation-success",
 }]
-async fn cpapi_handle_instance_put_result(
+async fn cpapi_handle_instance_put_success(
     rqctx: RequestContext<Arc<ServerContext>>,
     path_params: Path<InstancePathParam>,
-    result: TypedBody<Result<
-        Option<SledInstanceState>,
-        sled_agent_client::types::Error
-    >>,
+    instance_state: TypedBody<SledInstanceState>,
 ) -> Result<HttpResponseUpdatedNoContent, HttpError> {
     let apictx = rqctx.context();
     let nexus = &apictx.nexus;
     let path = path_params.into_inner();
-    let result = result.into_inner();
+    let result = Ok(instance_state.into_inner());
+    let opctx = crate::context::op_context_for_internal_api(&rqctx).await;
+    let handler = async {
+        nexus
+            .instance_handle_creation_result(&opctx, &path.instance_id, result)
+            .await?;
+        Ok(HttpResponseUpdatedNoContent())
+    };
+    apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
+}
+
+/// Asynchronously report the unsuccessful result of a potentially long-running
+/// instance_put call to sled-agent made during instance creation.
+#[endpoint {
+method = PUT,
+path = "/instances/{instance_id}/creation-failure",
+}]
+async fn cpapi_handle_instance_put_failure(
+    rqctx: RequestContext<Arc<ServerContext>>,
+    path_params: Path<InstancePathParam>,
+    error: TypedBody<String>,
+) -> Result<HttpResponseUpdatedNoContent, HttpError> {
+    let apictx = rqctx.context();
+    let nexus = &apictx.nexus;
+    let path = path_params.into_inner();
+    let result = Err(omicron_common::api::external::Error::InternalError {
+        internal_message: error.into_inner(),
+    });
     let opctx = crate::context::op_context_for_internal_api(&rqctx).await;
     let handler = async {
         nexus

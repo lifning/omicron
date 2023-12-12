@@ -230,6 +230,85 @@
         }
       }
     },
+    "/instances/{instance_id}/creation-failure": {
+      "put": {
+        "summary": "Asynchronously report the unsuccessful result of a potentially long-running",
+        "description": "instance_put call to sled-agent made during instance creation.",
+        "operationId": "cpapi_handle_instance_put_failure",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instance_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "title": "String",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "resource updated"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Error"
+          },
+          "5XX": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/instances/{instance_id}/creation-success": {
+      "put": {
+        "summary": "Asynchronously report the successful result of a potentially long-running",
+        "description": "instance_put call to sled-agent made during instance creation.",
+        "operationId": "cpapi_handle_instance_put_success",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "instance_id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SledInstanceState"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "resource updated"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Error"
+          },
+          "5XX": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/metrics/collect/{producer_id}": {
       "get": {
         "summary": "Endpoint for oximeter to collect nexus server metrics.",

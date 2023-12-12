@@ -976,16 +976,12 @@ impl super::Nexus {
         &self,
         opctx: &OpContext,
         instance_id: &Uuid,
-        result: Result<
-            Option<nexus::SledInstanceState>,
-            sled_agent_client::types::Error,
-        >,
+        result: Result<nexus::SledInstanceState, Error>,
     ) -> Result<(), Error> {
-        let (.., authz_instance, db_instance) =
-            LookupPath::new(&opctx, &self.db_datastore)
-                .instance_id(*instance_id)
-                .lookup_for(authz::Action::Modify)
-                .await?;
+        let (.., authz_instance) = LookupPath::new(&opctx, &self.db_datastore)
+            .instance_id(*instance_id)
+            .lookup_for(authz::Action::Modify)
+            .await?;
 
         let state = self
             .db_datastore
@@ -993,14 +989,29 @@ impl super::Nexus {
             .await?;
 
         // TODO: add param for sled-agent to show its 'previous' and compare with this
+        //  to validate consistency between nexus and sled-agent
         let prev_instance_runtime = &state.instance().runtime_state;
 
-        self.handle_instance_put_result(
-            instance_id,
-            prev_instance_runtime,
-            result.map_err(Into::into), // TODO: this isn't real
-        ).await?;
-        todo!()
+        match result {
+            Ok(new_state) => self
+                .db_datastore
+                .instance_and_vmm_update_runtime(
+                    instance_id,
+                    &new_state.instance_state.into(),
+                    &new_state.propolis_id,
+                    &new_state.vmm_state.into(),
+                )
+                .await
+                .map(|_| ()),
+            Err(error) => {
+                self.mark_instance_failed(
+                    instance_id,
+                    prev_instance_runtime,
+                    error,
+                )
+                .await
+            }
+        }
     }
 
     /// Modifies the runtime state of the Instance as requested.  This generally
@@ -1296,7 +1307,7 @@ impl super::Nexus {
         &self,
         instance_id: &Uuid,
         prev_instance_runtime: &db::model::InstanceRuntimeState,
-        reason: &SledAgentInstancePutError,
+        reason: impl std::fmt::Debug,
     ) -> Result<(), Error> {
         error!(self.log, "marking instance failed due to sled agent API error";
                "instance_id" => %instance_id,

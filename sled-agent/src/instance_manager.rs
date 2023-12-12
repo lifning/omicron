@@ -362,8 +362,60 @@ impl InstanceManager {
             }
         };
 
-        let new_state = instance.put_state(target).await?;
-        Ok(InstancePutStateResponse { updated_runtime: Some(new_state) })
+        match target {
+            // these may involve a long-running zone creation, so avoid HTTP
+            // request timeouts by decoupling the response
+            InstanceStateRequested::MigrationTarget(_)
+            | InstanceStateRequested::Running => {
+                let inst_mgr = self.inner.clone();
+                let log =
+                    self.inner.log.new(o!("component" => "InstanceManager"));
+                tokio::spawn(async move {
+                    let nexus_client = inst_mgr.nexus_client.client();
+                    match instance.put_state(target).await {
+                        Ok(state) => {
+                            let instance_state: nexus_client::types::SledInstanceState = state.into();
+                            if let Err(err) = nexus_client
+                                .cpapi_handle_instance_put_success(
+                                    &instance_id,
+                                    &instance_state,
+                                )
+                                .await
+                            {
+                                error!(log, "Failed to inform Nexus of instance_put success";
+                                    "err" => %err,
+                                    "instance_state" => ?instance_state,
+                                    "instance_id" => %instance_id,
+                                );
+                            }
+                        }
+                        Err(instance_put_error) => {
+                            if let Err(err) = nexus_client
+                                .cpapi_handle_instance_put_failure(
+                                    &instance_id,
+                                    &instance_put_error.to_string(),
+                                )
+                                .await
+                            {
+                                error!(log, "Failed to inform Nexus of instance_put failure";
+                                    "err" => %err,
+                                    "instance_id" => %instance_id,
+                                    "instance_put_error" => %instance_put_error,
+                                );
+                            }
+                        }
+                    };
+                });
+                Ok(InstancePutStateResponse { updated_runtime: None })
+            }
+            InstanceStateRequested::Stopped
+            | InstanceStateRequested::Reboot => {
+                let new_state = instance.put_state(target).await?;
+                Ok(InstancePutStateResponse {
+                    updated_runtime: Some(new_state),
+                })
+            }
+        }
     }
 
     /// Idempotently attempts to set the instance's migration IDs to the
