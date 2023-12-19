@@ -971,7 +971,14 @@ impl super::Nexus {
         }
     }
 
-    /// TODO describe how this relates to [Self::instance_request_state] (above)
+    /// For calls to [sled_agent_client::Client::instance_put_state] (such as
+    /// made by [Self::instance_request_state]) that involve a long-running
+    /// task such as creating a propolis zone (i.e. during instance creation
+    /// or migration target provisioning), sled-agent may send the resulting
+    /// instance state to Nexus via the internal API instead of blocking
+    /// during the request handler and risking an HTTP request timeout. This
+    /// function writes the asynchronously-returned updated instance state
+    /// to the database.
     pub(crate) async fn instance_handle_creation_result(
         &self,
         opctx: &OpContext,
@@ -983,30 +990,20 @@ impl super::Nexus {
             .lookup_for(authz::Action::Modify)
             .await?;
 
-        let state = self
-            .db_datastore
-            .instance_fetch_with_vmm(opctx, &authz_instance)
-            .await?;
-
-        // TODO: add param for sled-agent to show its 'previous' and compare with this
-        //  to validate consistency between nexus and sled-agent
-        let prev_instance_runtime = &state.instance().runtime_state;
-
         match result {
             Ok(new_state) => self
-                .db_datastore
-                .instance_and_vmm_update_runtime(
-                    instance_id,
-                    &new_state.instance_state.into(),
-                    &new_state.propolis_id,
-                    &new_state.vmm_state.into(),
-                )
+                .write_returned_instance_state(instance_id, Some(new_state))
                 .await
                 .map(|_| ()),
             Err(error) => {
+                let state = self
+                    .db_datastore
+                    .instance_fetch_with_vmm(opctx, &authz_instance)
+                    .await?;
+
                 self.mark_instance_failed(
                     instance_id,
-                    prev_instance_runtime,
+                    &state.instance().runtime_state,
                     error,
                 )
                 .await

@@ -7,7 +7,7 @@ use omicron_test_utils::dev::poll::{wait_for_condition, CondCheckError};
 use oxide_client::types::{
     ByteCount, DiskCreate, DiskSource, ExternalIpCreate, InstanceCpuCount,
     InstanceCreate, InstanceDiskAttachment, InstanceNetworkInterfaceAttachment,
-    SshKeyCreate,
+    InstanceState, SshKeyCreate,
 };
 use oxide_client::{ClientDisksExt, ClientInstancesExt, ClientSessionExt};
 use russh::{ChannelMsg, Disconnect};
@@ -97,6 +97,19 @@ async fn instance_launch() -> Result<()> {
         || async {
             type Error =
                 CondCheckError<oxide_client::Error<oxide_client::types::Error>>;
+
+            let instance_state = ctx
+                .client
+                .instance_view()
+                .project(ctx.project_name.clone())
+                .instance(instance.name.clone())
+                .send()
+                .await?
+                .run_state;
+
+            if instance_state == InstanceState::Starting {
+                return Err(Error::NotYet);
+            }
 
             let data = String::from_utf8_lossy(
                 &ctx.client
