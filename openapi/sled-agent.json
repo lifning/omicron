@@ -4729,6 +4729,12 @@
         "description": "The response sent from a request to move an instance into a specific runtime state.",
         "type": "object",
         "properties": {
+          "expect_callback_in_seconds": {
+            "nullable": true,
+            "description": "The amount of time Nexus should wait before giving up on getting a response from an instance_put_state call with an asynchronous implementation (i.e. instance creation zone installation).",
+            "type": "number",
+            "format": "double"
+          },
           "updated_runtime": {
             "nullable": true,
             "description": "The current runtime state of the instance after handling the request to change its state. If the instance's state did not change, this field is `None`.",

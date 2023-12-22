@@ -353,6 +353,7 @@ impl InstanceManager {
                     InstanceStateRequested::Stopped => {
                         return Ok(InstancePutStateResponse {
                             updated_runtime: None,
+                            expect_callback_in_seconds: None,
                         });
                     }
                     _ => {
@@ -406,13 +407,17 @@ impl InstanceManager {
                         }
                     };
                 });
-                Ok(InstancePutStateResponse { updated_runtime: None })
+                Ok(InstancePutStateResponse {
+                    updated_runtime: None,
+                    expect_callback_in_seconds: Some(120.0f64),
+                })
             }
             InstanceStateRequested::Stopped
             | InstanceStateRequested::Reboot => {
                 let new_state = instance.put_state(target).await?;
                 Ok(InstancePutStateResponse {
                     updated_runtime: Some(new_state),
+                    expect_callback_in_seconds: None,
                 })
             }
         }

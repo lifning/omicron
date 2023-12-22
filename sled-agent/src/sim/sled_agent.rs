@@ -45,6 +45,7 @@ use std::collections::HashMap;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use uuid::Uuid;
 
 /// Simulates management of the control plane on a sled
@@ -375,6 +376,7 @@ impl SledAgent {
                     InstanceStateRequested::Stopped => {
                         return Ok(InstancePutStateResponse {
                             updated_runtime: None,
+                            expect_callback_in_seconds: None,
                         });
                     }
                     _ => {
@@ -395,7 +397,37 @@ impl SledAgent {
                     ));
                 }
                 InstanceStateRequested::Running => {
-                    propolis_client::types::InstanceStateRequested::Run
+                    let instances = self.instances.clone();
+                    let nexus_client = self.nexus_client.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(Duration::from_secs(10)).await;
+                        match instances
+                            .sim_ensure(&instance_id, current, Some(state))
+                            .await
+                        {
+                            Ok(state) => {
+                                let instance_state: nexus_client::types::SledInstanceState = state.into();
+                                let _: Result<_, _> = nexus_client
+                                    .cpapi_handle_instance_put_success(
+                                        &instance_id,
+                                        &instance_state,
+                                    )
+                                    .await;
+                            }
+                            Err(instance_put_error) => {
+                                let _: Result<_, _> = nexus_client
+                                    .cpapi_handle_instance_put_failure(
+                                        &instance_id,
+                                        &instance_put_error.to_string(),
+                                    )
+                                    .await;
+                            }
+                        }
+                    });
+                    return Ok(InstancePutStateResponse {
+                        updated_runtime: None,
+                        expect_callback_in_seconds: Some(120.0f64),
+                    });
                 }
                 InstanceStateRequested::Stopped => {
                     propolis_client::types::InstanceStateRequested::Stop
@@ -420,7 +452,10 @@ impl SledAgent {
             self.detach_disks_from_instance(instance_id).await?;
         }
 
-        Ok(InstancePutStateResponse { updated_runtime: Some(new_state) })
+        Ok(InstancePutStateResponse {
+            updated_runtime: Some(new_state),
+            expect_callback_in_seconds: None,
+        })
     }
 
     pub async fn set_instance_ensure_state_error(&self, error: Option<Error>) {

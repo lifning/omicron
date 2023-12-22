@@ -120,6 +120,10 @@ pub struct InstancePutStateResponse {
     /// change its state. If the instance's state did not change, this field is
     /// `None`.
     pub updated_runtime: Option<SledInstanceState>,
+    /// The amount of time Nexus should wait before giving up on getting a
+    /// response from an instance_put_state call with an asynchronous
+    /// implementation (i.e. instance creation zone installation).
+    pub expect_callback_in_seconds: Option<f64>,
 }
 
 /// The response sent from a request to unregister an instance.
