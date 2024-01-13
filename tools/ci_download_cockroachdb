@@ -103,20 +103,42 @@ function configure_os
 	echo "configuring based on OS: \"$1\""
 	case "$1" in
 		darwin*)
-			CIDL_BUILD="darwin-10.9-amd64"
 			CIDL_SUFFIX="tgz"
-			CIDL_MD5="$CIDL_MD5_DARWIN"
 			CIDL_MD5FUNC="do_md5"
 			CIDL_URL_BASE="$CIDL_URL_COCKROACH"
 			CIDL_ASSEMBLE="do_assemble_official"
+			case "$(uname -m)" in
+				aarch64|arm64)
+					CIDL_BUILD="darwin-11.0-arm64"
+					CIDL_MD5="$CIDL_MD5_DARWIN_AARCH64"
+					;;
+				x86_64|amd64)
+					CIDL_BUILD="darwin-10.9-amd64"
+					CIDL_MD5="$CIDL_MD5_DARWIN_X86_64"
+					;;
+				*)
+					fail "unsupported architecture: $(uname -m)"
+					;;
+			esac
 			;;
 		linux-gnu*)
-			CIDL_BUILD="linux-amd64"
 			CIDL_SUFFIX="tgz"
-			CIDL_MD5="$CIDL_MD5_LINUX"
-			CIDL_MD5FUNC="do_md5sum"
 			CIDL_URL_BASE="$CIDL_URL_COCKROACH"
 			CIDL_ASSEMBLE="do_assemble_official"
+			CIDL_MD5FUNC="do_md5sum"
+			case "$(uname -m)" in
+				aarch64|arm64)
+					CIDL_BUILD="linux-arm64"
+					CIDL_MD5="$CIDL_MD5_LINUX_AARCH64"
+					;;
+				x86_64|amd64)
+					CIDL_BUILD="linux-amd64"
+					CIDL_MD5="$CIDL_MD5_LINUX_X86_64"
+					;;
+				*)
+					fail "unsupported architecture: $(uname -m)"
+					;;
+			esac
 			;;
 		solaris*)
 			CIDL_BUILD="illumos"
