@@ -56,6 +56,7 @@ use sled_agent_client::types::SourceNatConfig;
 use std::matches;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use uuid::Uuid;
 
@@ -957,14 +958,39 @@ impl super::Nexus {
                 // the caller to let it decide how to handle it.
                 //
                 // When creating the zone for the first time, we just get
-                // Ok(None) here, which is a no-op. We later asynchronously get
-                // a cpapi call invoking Self::write_returned_instance_state
+                // Ok(None) here, which is a no-op in write_returned_instance_state.
+                // (We later asynchronously receive a cpapi call that invokes
+                // write_returned_instance_state with the outcome.)
                 match instance_put_result {
-                    Ok(state) => self
-                        .write_returned_instance_state(&instance_id, state)
-                        .await
-                        .map(|_| ())
-                        .map_err(Into::into),
+                    Ok(state) => {
+                        if state.is_none()
+                            && matches!(
+                                requested,
+                                InstanceStateChangeRequest::Run
+                                    | InstanceStateChangeRequest::Migrate(..)
+                            )
+                        {
+                            // TODO: This is fragile -- suppose the nexus with
+                            // this task crashes *and* the instance creation
+                            // happens to also hang. The new nexus won't know
+                            // to give up on the instance! In an ideal world
+                            // this would be handled by a RPW that polls all
+                            // the instances nexus knows about and finds any
+                            // that have been in a still-starting state for too
+                            // long -- say, InstanceRuntimeState::time_updated
+                            // plus the timeout, assuming time_updated is the
+                            // right point to measure from.
+                            tokio::spawn(async {
+                                tokio::time::sleep(Duration::from_secs(120))
+                                    .await;
+                                todo: fail instance
+                            })
+                        }
+                        self.write_returned_instance_state(&instance_id, state)
+                            .await
+                            .map(|_| ())
+                            .map_err(Into::into)
+                    }
                     Err(e) => Err(InstanceStateChangeError::SledAgent(e)),
                 }
             }

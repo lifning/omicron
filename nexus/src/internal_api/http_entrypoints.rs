@@ -29,6 +29,7 @@ use nexus_types::internal_api::params::SwitchPutRequest;
 use nexus_types::internal_api::params::SwitchPutResponse;
 use nexus_types::internal_api::views::to_list;
 use nexus_types::internal_api::views::BackgroundTask;
+use nexus_types::internal_api::views::HandleInstancePutResultResult;
 use nexus_types::internal_api::views::Saga;
 use omicron_common::api::external::http_pagination::data_page_params_for;
 use omicron_common::api::external::http_pagination::PaginatedById;
@@ -271,42 +272,55 @@ async fn cpapi_instances_put(
     apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
 }
 
-/// Asynchronously report the successful result of a potentially long-running
-/// instance_put call to sled-agent made during instance creation.
+/// Asynchronously report the successful result of certain instance_put calls
+/// (such as the potentially long-running one made during instance creation)
 #[endpoint {
-method = PUT,
-path = "/instances/{instance_id}/creation-success",
-}]
+     method = PUT,
+     path = "/instances/{instance_id}/creation-success",
+ }]
 async fn cpapi_handle_instance_put_success(
     rqctx: RequestContext<Arc<ServerContext>>,
     path_params: Path<InstancePathParam>,
     instance_state: TypedBody<SledInstanceState>,
-) -> Result<HttpResponseUpdatedNoContent, HttpError> {
+) -> Result<HttpResponseOk<HandleInstancePutResultResult>, HttpError> {
     let apictx = rqctx.context();
     let nexus = &apictx.nexus;
     let path = path_params.into_inner();
     let result = Ok(instance_state.into_inner());
     let opctx = crate::context::op_context_for_internal_api(&rqctx).await;
     let handler = async {
-        nexus
+        // TODO: if instance_handle_creation_result errors because nexus gave
+        // up waiting and marked the instance as failed, tell sled-agent to
+        // destroy the instance
+        match nexus
             .instance_handle_creation_result(&opctx, &path.instance_id, result)
-            .await?;
+            .await
+        {
+            Ok(_) => Ok(HandleInstancePutResultResult::Ok.into()),
+            Err(err) => {
+                if todo {
+                    Ok(HandleInstancePutResultResult::TimedOut.into())
+                } else {
+                    Err(err)
+                }
+            }
+        }
         Ok(HttpResponseUpdatedNoContent())
     };
     apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
 }
 
-/// Asynchronously report the unsuccessful result of a potentially long-running
-/// instance_put call to sled-agent made during instance creation.
+/// Asynchronously report the unsuccessful result of certain instance_put calls
+/// (such as the potentially long-running one made during instance creation)
 #[endpoint {
-method = PUT,
-path = "/instances/{instance_id}/creation-failure",
-}]
+     method = PUT,
+     path = "/instances/{instance_id}/creation-failure",
+ }]
 async fn cpapi_handle_instance_put_failure(
     rqctx: RequestContext<Arc<ServerContext>>,
     path_params: Path<InstancePathParam>,
     error: TypedBody<String>,
-) -> Result<HttpResponseUpdatedNoContent, HttpError> {
+) -> Result<HttpResponseOk<HandleInstancePutResultResult>, HttpError> {
     let apictx = rqctx.context();
     let nexus = &apictx.nexus;
     let path = path_params.into_inner();
@@ -315,10 +329,19 @@ async fn cpapi_handle_instance_put_failure(
     });
     let opctx = crate::context::op_context_for_internal_api(&rqctx).await;
     let handler = async {
-        nexus
+        match nexus
             .instance_handle_creation_result(&opctx, &path.instance_id, result)
-            .await?;
-        Ok(HttpResponseUpdatedNoContent())
+            .await
+        {
+            Ok(_) => Ok(HandleInstancePutResultResult::Ok.into()),
+            Err(err) => {
+                if todo {
+                    Ok(HandleInstancePutResultResult::TimedOut.into())
+                } else {
+                    Err(err)
+                }
+            }
+        }
     };
     apictx.internal_latencies.instrument_dropshot_handler(&rqctx, handler).await
 }

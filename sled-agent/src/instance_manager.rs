@@ -376,18 +376,23 @@ impl InstanceManager {
                     match instance.put_state(target).await {
                         Ok(state) => {
                             let instance_state: nexus_client::types::SledInstanceState = state.into();
-                            if let Err(err) = nexus_client
+                            match nexus_client
                                 .cpapi_handle_instance_put_success(
                                     &instance_id,
                                     &instance_state,
                                 )
                                 .await
                             {
-                                error!(log, "Failed to inform Nexus of instance_put success";
-                                    "err" => %err,
-                                    "instance_state" => ?instance_state,
-                                    "instance_id" => %instance_id,
-                                );
+                                Ok(
+                                    TODO HandleInstancePutResultResult::Ok
+                                ) => {}
+                                Err(err) => {
+                                    error!(log, "Failed to inform Nexus of instance_put success";
+                                        "err" => %err,
+                                        "instance_state" => ?instance_state,
+                                        "instance_id" => %instance_id,
+                                    )
+                                }
                             }
                         }
                         Err(instance_put_error) => {

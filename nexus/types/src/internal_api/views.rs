@@ -296,3 +296,12 @@ pub struct LastResultCompleted {
     /// arbitrary datum emitted by the background task
     pub details: serde_json::Value,
 }
+
+/// Tells sled-agent whether an instance whose status it's reporting is still
+/// relevant, or if it's timed out during creation and been marked as failed
+/// (such that sled-agent can destroy the tardy instance)
+#[derive(Serialize, JsonSchema)]
+pub enum HandleInstancePutResultResult {
+    Ok,
+    TimedOut,
+}
