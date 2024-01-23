@@ -584,6 +584,18 @@ impl super::Nexus {
             }
         })
     }
+
+    /// Cleans up old cached artifacts in [`BASE_ARTIFACT_DIR`].
+    /// (If need be, they can be re-fetched by [Self::download_artifact].)
+    pub(crate) async fn cleanup_stale_cached_artifacts(
+        &self,
+        opctx: &OpContext,
+    ) {
+        todo!();
+        // delete files not referenced by database
+        // delete files whose valid_until is expired
+        // delete least-recently-used files until a given size is achieved
+    }
 }
 
 // TODO: convert system update tests to integration tests now that I know how to
