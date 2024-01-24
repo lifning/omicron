@@ -15,7 +15,7 @@ use crate::db::model::{
 };
 use crate::db::pagination::paginated;
 use async_bb8_diesel::AsyncRunQueryDsl;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use diesel::prelude::*;
 use nexus_db_model::SystemUpdateComponentUpdate;
 use nexus_types::identity::Asset;
@@ -63,6 +63,26 @@ impl DataStore {
             .map(|_rows_deleted| ())
             .map_err(|e| public_error_from_diesel(e, ErrorHandler::Server))
             .internal_context("deleting outdated available artifacts")
+    }
+
+    pub async fn update_artifact_list_expired(
+        &self,
+        opctx: &OpContext,
+        cutoff_datetime: DateTime<Utc>,
+        limit: i64,
+    ) -> ListResultVec<UpdateArtifact> {
+        opctx.authorize(authz::Action::ListChildren, &authz::FLEET).await?;
+
+        use db::schema::update_artifact::dsl;
+
+        dsl::update_artifact
+            .select(UpdateArtifact::as_select())
+            .filter(dsl::valid_until.lt(cutoff_datetime))
+            .order(dsl::valid_until.asc())
+            .limit(limit)
+            .load_async(&*self.pool_connection_authorized(opctx).await?)
+            .await
+            .map_err(|e| public_error_from_diesel(e, ErrorHandler::Server))
     }
 
     pub async fn upsert_system_update(

@@ -170,13 +170,7 @@ impl super::Nexus {
             )
             .fetch()
             .await?;
-        let filename = format!(
-            "{}.{}.{}-{}",
-            artifact_entry.target_sha256,
-            artifact.kind,
-            artifact.name,
-            artifact.version
-        );
+        let filename = artifact_entry.filename();
         let path = Path::new(BASE_ARTIFACT_DIR).join(&filename);
 
         if !path.exists() {
@@ -591,9 +585,29 @@ impl super::Nexus {
         &self,
         opctx: &OpContext,
     ) {
-        todo!();
-        // delete files not referenced by database
         // delete files whose valid_until is expired
+        if let Ok(expired_artifacts) = self
+            .db_datastore
+            .update_artifact_list_expired(&opctx, Utc::now(), 100)
+            .await
+        {
+            for art in expired_artifacts {
+                let path = Path::new(&BASE_ARTIFACT_DIR).join(art.filename());
+                if path.exists() {
+                    if let Err(err) = tokio::fs::remove_file(&path).await {
+                        warn!(
+                            self.log,
+                            "Stale update artifact cleanup: Couldn't delete file";
+                            "path" => ?path,
+                            "err" => %err
+                        );
+                    }
+                }
+            }
+        }
+
+        todo!()
+        // delete files not referenced by database
         // delete least-recently-used files until a given size is achieved
     }
 }

@@ -59,4 +59,11 @@ impl UpdateArtifact {
     pub fn id(&self) -> (String, SemverVersion, KnownArtifactKind) {
         (self.name.clone(), self.version.clone(), self.kind)
     }
+
+    pub fn filename(&self) -> String {
+        format!(
+            "{}.{}.{}-{}",
+            self.target_sha256, self.kind, self.name, self.version
+        )
+    }
 }
