@@ -568,13 +568,18 @@ impl<'a> Downloader<'a> {
 
     async fn download_cockroach(&self) -> Result<()> {
         let os = os_name()?;
+        let arch = arch()?;
 
         let download_dir = self.output_dir.join("downloads");
         let destination_dir = self.output_dir.join("cockroachdb");
 
         let checksums_path = self.versions_dir.join("cockroachdb_checksums");
         let [checksum] = get_values_from_file(
-            [&format!("CIDL_SHA256_{}", os.env_name())],
+            [&format!(
+                "CIDL_SHA256_{}_{}",
+                os.env_name(),
+                std::env::consts::ARCH.to_uppercase()
+            )],
             &checksums_path,
         )
         .await?;
@@ -589,10 +594,13 @@ impl<'a> Downloader<'a> {
             Os::Illumos => ("https://illumos.org/downloads", "tar.gz"),
             Os::Linux | Os::Mac => ("https://binaries.cockroachdb.com", "tgz"),
         };
-        let build = match os {
-            Os::Illumos => "illumos",
-            Os::Linux => "linux-amd64",
-            Os::Mac => "darwin-10.9-amd64",
+        let build = match (&os, &arch) {
+            (Os::Illumos, Arch::X86_64) => "illumos",
+            (Os::Illumos, Arch::Aarch64) => unimplemented!(),
+            (Os::Linux, Arch::X86_64) => "linux-amd64",
+            (Os::Linux, Arch::Aarch64) => "linux-arm64",
+            (Os::Mac, Arch::X86_64) => "darwin-10.9-amd64",
+            (Os::Mac, Arch::Aarch64) => "darwin-11.0-arm64",
         };
 
         let version_directory = format!("cockroach-{version}");
