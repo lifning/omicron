@@ -468,7 +468,11 @@ impl<'a> Downloader<'a> {
 
         let checksums_path = self.versions_dir.join("cargo_hack_checksum");
         let [checksum] = get_values_from_file(
-            [&format!("CIDL_SHA256_{}", os.env_name())],
+            [&format!(
+                "CIDL_SHA256_{}_{}",
+                os.env_name(),
+                std::env::consts::ARCH.to_uppercase()
+            )],
             &checksums_path,
         )
         .await?;
@@ -514,13 +518,18 @@ impl<'a> Downloader<'a> {
 
     async fn download_clickhouse(&self) -> Result<()> {
         let os = os_name()?;
+        let arch = arch()?;
 
         let download_dir = self.output_dir.join("downloads");
         let destination_dir = self.output_dir.join("clickhouse");
 
         let checksums_path = self.versions_dir.join("clickhouse_checksums");
         let [checksum] = get_values_from_file(
-            [&format!("CIDL_SHA256_{}", os.env_name())],
+            [&format!(
+                "CIDL_SHA256_{}_{}",
+                os.env_name(),
+                std::env::consts::ARCH.to_uppercase()
+            )],
             &checksums_path,
         )
         .await?;
@@ -534,14 +543,27 @@ impl<'a> Downloader<'a> {
         const S3_BUCKET: &'static str =
             "https://oxide-clickhouse-build.s3.us-west-2.amazonaws.com";
 
+        const UPSTREAM_BINS: &'static str =
+            "https://packages.clickhouse.com/tgz/stable";
+
         let platform = match os {
             Os::Illumos => "illumos",
             Os::Linux => "linux",
             Os::Mac => "macos",
         };
-        let tarball_filename =
-            format!("clickhouse-{version}.{platform}.tar.gz");
-        let tarball_url = format!("{S3_BUCKET}/{tarball_filename}");
+
+        let tarball_filename;
+        let tarball_url;
+        if matches!((&os, &arch), (Os::Linux, Arch::Aarch64)) {
+            let version = version.trim_start_matches('v');
+            tarball_filename =
+                format!("clickhouse-common-static-{version}-arm64.tgz");
+            tarball_url = format!("{UPSTREAM_BINS}/{tarball_filename}");
+        } else {
+            tarball_filename =
+                format!("clickhouse-{version}.{platform}.tar.gz");
+            tarball_url = format!("{S3_BUCKET}/{tarball_filename}");
+        }
 
         let tarball_path = download_dir.join(tarball_filename);
 
@@ -558,7 +580,19 @@ impl<'a> Downloader<'a> {
         .await?;
 
         unpack_tarball(&self.log, &tarball_path, &destination_dir).await?;
+
         let clickhouse_binary = destination_dir.join("clickhouse");
+
+        if matches!((&os, &arch), (Os::Linux, Arch::Aarch64)) {
+            let version = version.trim_start_matches('v');
+            tokio::fs::rename(
+                destination_dir.join(format!(
+                    "clickhouse-common-static-{version}/usr/bin/clickhouse"
+                )),
+                &clickhouse_binary,
+            )
+            .await?;
+        }
 
         info!(self.log, "Checking that binary works");
         clickhouse_confirm_binary_works(&clickhouse_binary).await?;
